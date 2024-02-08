@@ -72,12 +72,13 @@ class TinyShakespeare(TextDataset):
     _text_files = [Path(__file__).with_name("data") / "tiny-shakespeare.txt"]
 
 
-class ChineseLiterature(TextDataset):
+class SherlockLiterature(TextDataset):
 
-    _text_files = [
-        Path(__file__).with_name("data") / "shuihu.txt",
-        Path(__file__).with_name("data") / "hongloumeng.txt"
-    ]
+    _text_files = [Path(__file__).with_name("data") / "sherlock_holmes.txt"]
+
+class MovieConversations(TextDataset):
+
+    _text_files = [Path(__file__).with_name("data") / "movie_conversations.txt"]
 
 
 if __name__ == "__main__":
@@ -91,7 +92,16 @@ if __name__ == "__main__":
         print(ds.textify(ys[b]))
         print()
 
-    ds = ChineseLiterature()
+    ds = SherlockLiterature()
+
+    xs, ys = ds.get_batch()
+
+    for b in range(xs.shape[0]):
+        print(ds.textify(xs[b]))
+        print(ds.textify(ys[b]))
+        print()
+
+    ds = MovieConversations()
 
     xs, ys = ds.get_batch()
 
