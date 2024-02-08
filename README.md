@@ -33,12 +33,14 @@ Traning can converge on an `RTX2080Ti` in about 15 minutes. Run this cmd for an 
 python3 chat.py
 ```
 
-The default training dataset is Chinese classical literatures "水浒传" and "红楼梦", which can be easily changed to anything you like.
+The default training dataset can be easily changed to anything you like.
 
 
 ## Acknowledgements
 
 Thank you Andrew Karpathy for your excellent [youtube video][KarpathyYTB] and the [nanoGPT][NanoGPT] project.
+Also thank you to BigEagle for his [picoGPT][PicoGPT]
 
 [KarpathyYTB]: https://www.youtube.com/watch?v=kCc8FmEb1nY
 [NanoGPT]: https://github.com/karpathy/nanoGPT
+[PicoGPT]: https://github.com/bigeagle/picoGPT
