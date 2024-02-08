@@ -7,7 +7,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch.nn import functional as F
 
-from dataset import TinyShakespeare, SherlockLiterature, MovieConversations
+from dataset import NewPersona, MovieLines, SherlockLiterature, MovieConversations
 from model import BigramLangModel
 
 
