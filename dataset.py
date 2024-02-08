@@ -67,10 +67,13 @@ class TextDataset(Dataset):
         return ''.join(self._idx2char[int(i)] for i in tokens)
 
 
-class TinyShakespeare(TextDataset):
+class MovieLines(TextDataset):
 
-    _text_files = [Path(__file__).with_name("data") / "tiny-shakespeare.txt"]
+    _text_files = [Path(__file__).with_name("data") / "movie_lines.txt"]
 
+class NewPersona(TextDataset):
+
+    _text_files = [Path(__file__).with_name("data") / "new_persona.txt"]
 
 class SherlockLiterature(TextDataset):
 
@@ -83,7 +86,7 @@ class MovieConversations(TextDataset):
 
 if __name__ == "__main__":
 
-    ds = TinyShakespeare()
+    ds = MovieLines()
 
     xs, ys = ds.get_batch()
 
@@ -91,7 +94,16 @@ if __name__ == "__main__":
         print(ds.textify(xs[b]))
         print(ds.textify(ys[b]))
         print()
+        
+    ds = NewPersona()
 
+    xs, ys = ds.get_batch()
+
+    for b in range(xs.shape[0]):
+        print(ds.textify(xs[b]))
+        print(ds.textify(ys[b]))
+        print()
+    
     ds = SherlockLiterature()
 
     xs, ys = ds.get_batch()
