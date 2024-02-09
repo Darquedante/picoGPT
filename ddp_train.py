@@ -39,7 +39,7 @@ def main():
 
     logger.configure(handlers=[{"sink": RichHandler(), "format": "{message}", "level": 'INFO'}])
 
-    ds = ChineseLiterature()
+    ds = SherlockLiterature()
     model = BigramLangModel(
         vocab_size=ds.vocab_size(),
         block_size=args.block_size,
