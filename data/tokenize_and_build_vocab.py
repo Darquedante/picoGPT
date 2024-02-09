@@ -3,7 +3,7 @@ from nltk.tokenize import word_tokenize
 from collections import Counter
 
 # Ensure you have the necessary NLTK data
-nltk.download('punkt')
+#nltk.download('punkt')
 
 def tokenize_and_build_vocab(*file_paths):
     global_vocab = Counter()
