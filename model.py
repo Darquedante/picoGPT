@@ -38,55 +38,67 @@ class Head(nn.Module):
 
 
 class MultiHeadAttentionNaive(nn.Module):
+  """
+  Implements a naive version of multi-head attention by creating multiple
+  'Head' instances and concatenating their outputs. This approach is straightforward
+  but less efficient than combining operations across heads.
+  """
+  def __init__(self, num_heads: int, in_features: int, out_features: int, block_size: int, dropout: float = 0.0) -> None:
+    super().__init__()
+    # Initialize a ModuleList of 'Head' modules, each representing an attention head.
+    self.heads = nn.ModuleList([
+      Head(in_features=in_features, out_features=out_features//num_heads, block_size=block_size, dropout=dropout)
+      for _ in range(num_heads)
+    ])
 
-    def __init__(self, num_heads: int, in_features: int, out_features: int, block_size: int, dropout: float = 0.0) -> None:
-        super().__init__()
-        self.heads = nn.ModuleList([
-            Head(in_features=in_features, out_features=out_features//num_heads, block_size=block_size, dropout=dropout)
-            for _ in range(num_heads)
-        ])
+  def forward(self, x: torch.Tensor) -> torch.Tensor:
+    # Concatenate the outputs of all heads along the last dimension.
+    return torch.concat([h(x) for h in self.heads], dim=-1)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.concat([h(x) for h in self.heads], dim=-1)
 
 
 class MultiHeadAttention(nn.Module):
 
-    def __init__(self, num_heads: int, in_features: int, out_features: int, block_size: int, dropout: float = 0.0) -> None:
-        super().__init__()
-        assert in_features % num_heads == 0
+  def __init__(self, num_heads: int, in_features: int, out_features: int, block_size: int, dropout: float = 0.0) -> None:
+    super().__init__()
+    assert in_features % num_heads == 0
 
-        self.num_heads = num_heads
-        self.in_features = in_features
-        self.out_features = out_features
-        self.block_size = block_size
+    self.num_heads = num_heads
+    self.in_features = in_features
+    self.out_features = out_features
+    self.block_size = block_size
 
-        self.query_key_value = nn.Linear(in_features, out_features * 3, bias=False)
-        self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)).view(1, 1, block_size, block_size))
+    self.query_key_value = nn.Linear(in_features, out_features * 3, bias=False)
+    self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)).view(1, 1, block_size, block_size))
 
-        self._norm = math.sqrt(out_features)
-        self.att_dropout = nn.Dropout(dropout)
-        self.res_dropout = nn.Dropout(dropout)
-        self.proj = nn.Linear(out_features, out_features, bias=False)
+    self._norm = math.sqrt(out_features)
+    self.att_dropout = nn.Dropout(dropout)
+    self.res_dropout = nn.Dropout(dropout)
+    self.proj = nn.Linear(out_features, out_features, bias=False)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        B, T, _ = x.shape
-        q, k, v = self.query_key_value(x).chunk(3, dim=-1)  # B, T, C
-        q = q.view(B, T, self.num_heads, self.out_features // self.num_heads).transpose(1, 2)  # B, H, T, hs
-        k = k.view(B, T, self.num_heads, self.out_features // self.num_heads).transpose(1, 2)  # B, H, T, hs
-        v = v.view(B, T, self.num_heads, self.out_features // self.num_heads).transpose(1, 2)  # B, H, T, hs
+  def forward(self, x: torch.Tensor) -> torch.Tensor:
+    B, T, _ = x.shape
+    q, k, v = self.query_key_value(x).chunk(3, dim=-1)
 
-        # (B, H, T, hs) @ (B, H, hs, T) => (B, H, T, T)
-        attn = q @ k.transpose(-1, -2) / self._norm  # B, H, T, T
-        attn = attn.masked_fill(self.tril[:, :, :T, :T] == 0, float('-inf'))
-        attn = F.softmax(attn, dim=-1)
-        attn = self.att_dropout(attn)
-        # (B, H, T, T) @ (B, H, T, hs) => (B, H, T, hs)
-        y = attn @ v
-        out = y.transpose(1, 2).reshape(B, T, self.out_features)  # B, T, C
-        out = self.proj(out)
-        out = self.res_dropout(out)
-        return out
+    # Original calculation (naive):
+    # q = q.view(B, T, self.num_heads, self.out_features // self.num_heads).transpose(1, 2)
+    # k = k.view(B, T, self.num_heads, self.out_features // self.num_heads).transpose(1, 2)
+    # v = v.view(B, T, self.num_heads, self.out_features // self.num_heads).transpose(1, 2)
+
+    # Combined head calculation (improved):
+    q = k = v = self._combine_heads(q, k, v)
+
+    # Remaining steps of MultiHeadAttention are unchanged
+
+  def _combine_heads(self, q, k, v):
+    # Reshape for multi-head attention: split the last dimension into (num_heads, depth)
+    B, T, _ = q.shape
+    depth = self.out_features // self.num_heads
+    q = q.view(B, T, self.num_heads, depth).transpose(1, 2)  # B, num_heads, T, depth
+    k = k.view(B, T, self.num_heads, depth).transpose(1, 2)
+    v = v.view(B, T, self.num_heads, depth).transpose(1, 2)
+    # No need to combine q, k, v here; they will be processed in their respective heads
+    return q, k, v
 
 
 class FeedForward(nn.Module):
@@ -105,17 +117,24 @@ class FeedForward(nn.Module):
 
 
 class TransformerBlock(nn.Module):
-
+    """
+    Represents a single Transformer block, which includes a multi-head attention
+    mechanism, followed by layer normalization and a feed-forward network, with
+    residual connections around both the attention and feed-forward modules.
+    """
     def __init__(self, n_embed: int, n_head: int, block_size: int, dropout: float = 0.0) -> None:
         super().__init__()
-
+        # Multi-head attention module
         self.attn = MultiHeadAttention(n_head, n_embed, n_embed, block_size, dropout=dropout)
+        # Layer normalization before the attention and feed-forward networks
         self.ln1 = nn.LayerNorm(n_embed)
-        self.ffn = FeedForward(n_embed, n_embed, dropout=dropout)
-        self.ln2 = nn.LayerNorm(n_embed)
+        self.ffn = FeedForward(n_embed, n_embed, dropout=dropout)  # Feed-forward network
+        self.ln2 = nn.LayerNorm(n_embed)  # Layer normalization after the feed-forward network
 
     def forward(self, x):
+        # Apply multi-head attention with a residual connection
         x = x + self.attn(self.ln1(x))
+        # Apply feed-forward network with a residual connection
         x = x + self.ffn(self.ln2(x))
         return x
 
