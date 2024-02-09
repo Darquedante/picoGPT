@@ -26,7 +26,6 @@ def main():
 
     logger.info(f"Batch size: {args.batch_size}, block size: {args.block_size}")
 
-    # ds = TinyShakespeare()
     ds = SherlockLiterature()
     blm = BigramLangModel(
         vocab_size=ds.vocab_size(),
